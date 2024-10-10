@@ -81,7 +81,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'vitalic',
         'USER': 'root',
-        'PASSWORD': 'wkddbqls0901',
+        'PASSWORD': '',
         'HOST': 'localhost',
         'PORT': '3306',
     }
