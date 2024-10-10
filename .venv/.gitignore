@@ -1,0 +1,56 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+*.sqlite3
+db.sqlite3
+*.db
+*.dump
+
+# Local settings
+local_settings.py
+
+# Static files
+/static/
+
+# Media files
+/media/
+
+# Django migrations
+*/migrations/__init__.py
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Python environment files
+Pipfile
+Pipfile.lock
+requirements.txt
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
