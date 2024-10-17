@@ -11,8 +11,8 @@ class passbook (models.Model) :
     tran_type = models.IntegerField()
     tran_amt = models.IntegerField()
     after_balance_amt = models.IntegerField()
-    category = models.IntegerField()  # todo 수정
+    out_type = models.IntegerField()  # todo 수정
 
     class Meta :
         db_table = 'passbook'
-        managed = False # 실제 테이블 관리 X
+        app_label = 'AnalysisApp'
