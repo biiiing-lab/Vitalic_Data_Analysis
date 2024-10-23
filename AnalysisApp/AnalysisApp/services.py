@@ -1,7 +1,9 @@
-
+from calendar import monthrange
 from collections import defaultdict
 from django.db.models import Sum, Case, When, F, IntegerField
 from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear, ExtractWeekDay
+from django.http import JsonResponse
+
 from .models import passbook
 
 CATEGORY_MAPPING = {
@@ -82,3 +84,30 @@ def fixed_analysis_patterns():
     return {
         "monthly": monthly_result if monthly_result else None
     }
+
+
+def calendar_amount(year, month):
+    # Prepare a dictionary to hold daily totals
+    daily_totals = {}
+
+    # 1부터 해당 월의 마지막 날까지의 일자 가져오기
+    last_day = monthrange(year, month)[1]  # 해당 월의 마지막 날
+    for day in range(1, last_day + 1):  # 각 날짜에 대해 반복
+        # 필터링: 해당 날짜의 거래 내역
+        daily_transactions = passbook.objects.filter(
+            tran_date_time__year=year,
+            tran_date_time__month=month,
+            tran_date_time__day=day
+        )
+
+        # 입금과 출금 합계 계산
+        deposit_total = daily_transactions.filter(inout_type=0).aggregate(total=Sum('tran_amt'))['total'] or 0
+        withdraw_total = daily_transactions.filter(inout_type=1).aggregate(total=Sum('tran_amt'))['total'] or 0
+
+        # 결과를 딕셔너리에 추가
+        daily_totals[day] = {
+            'deposits': deposit_total,
+            'withdrawals': withdraw_total
+        }
+
+    return daily_totals
