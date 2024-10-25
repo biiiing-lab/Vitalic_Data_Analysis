@@ -1,9 +1,9 @@
 from calendar import monthrange
 from collections import defaultdict
+from datetime import datetime, timedelta
+
 from django.db.models import Sum, Case, When, F, IntegerField
 from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear, ExtractWeekDay
-from django.http import JsonResponse
-
 from .models import passbook
 
 CATEGORY_MAPPING = {
@@ -41,43 +41,54 @@ def get_summary_data(transactions):
         "top_categories": top_categories
     }
 
+from collections import defaultdict
+from django.db.models import Case, When, F, IntegerField
+from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear, ExtractWeekDay
+
 
 def fixed_group():
-    return (passbook.objects
-            .annotate(
-        day=ExtractDay('tran_date_time'),
-        week_day=ExtractWeekDay('tran_date_time'),
-        month=ExtractMonth('tran_date_time'),
-        year=ExtractYear('tran_date_time'),
-        withdrawal_amount=Case(
-            When(inout_type=1, then=F('tran_amt')),
-            default=0,
-            output_field=IntegerField(),
-        )
-    )
-            .values('day', 'month', 'year', 'week_day', 'withdrawal_amount', 'inout_type', 'in_des')
-            .order_by('year', 'month', 'day'))
+    # 현재 날짜로부터 4개월 전 날짜 계산
+    today = datetime.today()
+    four_months_ago = today - timedelta(days=4*30)  # 대략적인 4개월 계산
 
+    return (passbook.objects
+            .filter(tran_date_time__gte=four_months_ago)  # 4개월 동안의 데이터만 필터링
+            .annotate(
+                day=ExtractDay('tran_date_time'),
+                month=ExtractMonth('tran_date_time'),
+                year=ExtractYear('tran_date_time'),
+                withdrawal_amount=Case(
+                    When(inout_type=1, then=F('tran_amt')),
+                    default=0,
+                    output_field=IntegerField(),
+                )
+            )
+            .values('day', 'month', 'year', 'withdrawal_amount', 'inout_type', 'in_des')
+            .order_by('year', 'month', 'day'))
 
 def fixed_analysis_patterns():
     transactions_by_day = fixed_group()
     monthly_pattern = defaultdict(list)
 
+    # 그룹화된 데이터를 처리하여 출금 내역을 월별 패턴으로 그룹화
     for transaction in transactions_by_day:
         day = transaction['day']
         withdraw_amount = transaction['withdrawal_amount'] if transaction['inout_type'] == 1 else 0
         withdrawal_source = transaction['in_des']
 
         if withdraw_amount > 0:
-            monthly_pattern[(day, withdrawal_source)].append(withdraw_amount)
+            # 출금일, 출금처, 출금액으로 그룹화
+            monthly_pattern[(day, withdrawal_source, withdraw_amount)].append(transaction)
 
     monthly_result = []
 
-    for (day, withdrawal_source), amounts in monthly_pattern.items():
-        if len(amounts) >= 15:  # Adjusted to 15 occurrences
+    # 각 그룹을 순회하면서 3번 이상 발생한 항목만 고정 지출로 간주
+    for (day, withdrawal_source, amount), transactions in monthly_pattern.items():
+        # 3회 이상 발생한 경우만 처리
+        if len(transactions) >= 3:
             monthly_result.append({
                 'date': f'{day}일',
-                'amount': amounts[0],
+                'amount': amount,
                 'source': withdrawal_source
             })
 
