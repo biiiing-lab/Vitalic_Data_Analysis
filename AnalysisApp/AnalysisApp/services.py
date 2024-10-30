@@ -1,10 +1,16 @@
 from calendar import monthrange
-from collections import defaultdict
 from datetime import datetime, timedelta
 
-from django.db.models import Sum, Case, When, F, IntegerField
-from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear, ExtractWeekDay
+from django.db.models import Sum
+from django.utils import timezone
+from rest_framework.response import Response
+
 from .models import passbook
+from collections import defaultdict
+from django.db.models import Case, When, F, IntegerField
+from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear
+
+from .serializers import ResponseSerializer
 
 CATEGORY_MAPPING = {
     0: '입금',
@@ -19,7 +25,7 @@ CATEGORY_MAPPING = {
     9: '기타'
 }
 
-
+# 오늘 기준 많이 쓴 곳
 def get_summary_data(transactions):
     deposit_total = transactions.filter(inout_type=0).aggregate(total=Sum('tran_amt'))['total'] or 0
     withdraw_total = transactions.filter(inout_type=1).aggregate(total=Sum('tran_amt'))['total'] or 0
@@ -41,9 +47,77 @@ def get_summary_data(transactions):
         "top_categories": top_categories
     }
 
-from collections import defaultdict
-from django.db.models import Case, When, F, IntegerField
-from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear, ExtractWeekDay
+# 월 주 일 기준 분석
+def transaction_mwd() :
+    today = timezone.now()
+    one_week_ago = today - timedelta(days=7)
+    one_month_ago = today - timedelta(days=30)
+
+    daily_transactions = passbook.objects.filter(tran_date_time__date=today.date())
+    daily_summary_data = get_summary_data(daily_transactions)
+
+    weekly_transactions = passbook.objects.filter(tran_date_time__gte=one_week_ago)
+    weekly_summary_data = get_summary_data(weekly_transactions)
+
+    monthly_transactions = passbook.objects.filter(tran_date_time__gte=one_month_ago)
+    monthly_summary_data = get_summary_data(monthly_transactions)
+
+    response_data = {
+        'monthly_summary': monthly_summary_data,
+        'weekly_summary': weekly_summary_data,
+        'daily_summary': daily_summary_data,
+    }
+
+    serializer = ResponseSerializer(response_data)
+    return Response(serializer.data)
+
+# 월별 통계
+def monthly_statistics(year, month):
+    # 주어진 연도와 월에 대한 트랜잭션 필터링
+    transactions = passbook.objects.filter(tran_date_time__year=year, tran_date_time__month=month)
+
+    # 월별 요약 데이터
+    monthly_summary = get_summary_data(transactions)
+
+    # 주간 요약 데이터
+    weekly_summary = []
+    days_in_month = monthrange(year, month)[1]  # 해당 월의 날짜 수를 가져옵니다.
+
+    for week in range(1, 6):  # 5주까지 가능하므로 1~5주
+        week_start_day = (week - 1) * 7 + 1  # 주의 시작일
+        week_end_day = week * 7  # 주의 종료일
+
+        # 날짜 범위가 해당 월의 마지막 날짜를 넘지 않도록 조정
+        if week_end_day > days_in_month:
+            week_end_day = days_in_month
+
+        week_start = f"{year}-{month:02d}-{week_start_day:02d}"
+        week_end = f"{year}-{month:02d}-{week_end_day:02d}"
+
+        week_transactions = transactions.filter(tran_date_time__range=[week_start, week_end])
+        weekly_summary.append(get_summary_data(week_transactions))
+
+    # 일일 요약 데이터
+    daily_summary = []
+    days_in_month = (transactions.last().tran_date_time.day if transactions.exists() else 0)  # 마지막 날
+    for day in range(1, days_in_month + 1):
+        daily_transactions = transactions.filter(tran_date_time__day=day)
+        daily_summary.append(get_summary_data(daily_transactions))
+
+    # 일일 평균 계산
+    daily_average_deposit = int(
+        sum(item['deposit_total'] for item in daily_summary) / days_in_month) if days_in_month > 0 else 0
+    daily_average_withdraw = int(
+        sum(item['withdraw_total'] for item in daily_summary) / days_in_month) if days_in_month > 0 else 0
+
+    return {
+        "monthly_summary": monthly_summary,
+        "weekly_summary": weekly_summary,
+        "daily_summary": {
+            "average_deposit": daily_average_deposit,
+            "average_withdraw": daily_average_withdraw
+        }
+    }
 
 
 def fixed_group():
