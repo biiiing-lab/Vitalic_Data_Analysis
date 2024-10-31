@@ -1,10 +1,9 @@
 from calendar import monthrange
 from datetime import datetime, timedelta
-
+import calendar
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.response import Response
-
 from .models import passbook
 from collections import defaultdict
 from django.db.models import Case, When, F, IntegerField
@@ -71,7 +70,6 @@ def transaction_mwd() :
     serializer = ResponseSerializer(response_data)
     return Response(serializer.data)
 
-# 월별 통계
 def monthly_statistics(year, month):
     # 주어진 연도와 월에 대한 트랜잭션 필터링
     transactions = passbook.objects.filter(tran_date_time__year=year, tran_date_time__month=month)
@@ -81,34 +79,42 @@ def monthly_statistics(year, month):
 
     # 주간 요약 데이터
     weekly_summary = []
-    days_in_month = monthrange(year, month)[1]  # 해당 월의 날짜 수를 가져옵니다.
+    _, days_in_month = calendar.monthrange(year, month)  # 해당 월의 마지막 날짜를 가져옵니다.
 
-    for week in range(1, 6):  # 5주까지 가능하므로 1~5주
-        week_start_day = (week - 1) * 7 + 1  # 주의 시작일
-        week_end_day = week * 7  # 주의 종료일
+    for week in range(1, 6):  # 최대 5주를 고려 (4주 + 1주 초과 가능성)
+        week_start_day = (week - 1) * 7 + 1  # 주의 시작일 계산
+        week_end_day = min(week * 7, days_in_month)  # 주의 종료일 계산, 월의 마지막 날짜를 넘지 않도록 제한
 
-        # 날짜 범위가 해당 월의 마지막 날짜를 넘지 않도록 조정
-        if week_end_day > days_in_month:
-            week_end_day = days_in_month
+        week_start_native = datetime(year, month, week_start_day)
+        week_end_native = datetime(year, month, week_end_day)
+        # 주간 날짜 범위 설정
+        week_start = timezone.make_aware(week_start_native)
+        week_end = timezone.make_aware(week_end_native)
 
-        week_start = f"{year}-{month:02d}-{week_start_day:02d}"
-        week_end = f"{year}-{month:02d}-{week_end_day:02d}"
-
+        # 주간 트랜잭션 필터링
         week_transactions = transactions.filter(tran_date_time__range=[week_start, week_end])
         weekly_summary.append(get_summary_data(week_transactions))
 
+        # 월의 마지막 날짜에 도달한 경우 루프 종료
+        if week_end_day == days_in_month:
+            break
+
     # 일일 요약 데이터
     daily_summary = []
-    days_in_month = (transactions.last().tran_date_time.day if transactions.exists() else 0)  # 마지막 날
     for day in range(1, days_in_month + 1):
+        # 특정 날짜의 트랜잭션 필터링
         daily_transactions = transactions.filter(tran_date_time__day=day)
         daily_summary.append(get_summary_data(daily_transactions))
 
     # 일일 평균 계산
-    daily_average_deposit = int(
-        sum(item['deposit_total'] for item in daily_summary) / days_in_month) if days_in_month > 0 else 0
-    daily_average_withdraw = int(
-        sum(item['withdraw_total'] for item in daily_summary) / days_in_month) if days_in_month > 0 else 0
+    daily_average_deposit = (
+        int(sum(item['deposit_total'] for item in daily_summary) / days_in_month)
+        if days_in_month > 0 else 0
+    )
+    daily_average_withdraw = (
+        int(sum(item['withdraw_total'] for item in daily_summary) / days_in_month)
+        if days_in_month > 0 else 0
+    )
 
     return {
         "monthly_summary": monthly_summary,
@@ -118,7 +124,6 @@ def monthly_statistics(year, month):
             "average_withdraw": daily_average_withdraw
         }
     }
-
 
 def fixed_group():
     # 현재 날짜로부터 4개월 전 날짜 계산
