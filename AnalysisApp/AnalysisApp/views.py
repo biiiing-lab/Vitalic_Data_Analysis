@@ -1,12 +1,9 @@
-from datetime import timedelta
-from django.utils import timezone
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from django.http import JsonResponse
-from .models import passbook
-from .serializers import ResponseSerializer
-from .services import get_summary_data, fixed_analysis_patterns, calendar_amount, \
+from rest_framework.decorators import api_view
+
+from .services import fixed_analysis_patterns, calendar_amount, \
     monthly_statistics, transaction_mwd  # Import your service functions
+
 
 # 월, 주, 일 기준 분석
 @api_view(['POST'])
