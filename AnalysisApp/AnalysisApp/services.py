@@ -1,15 +1,12 @@
 from calendar import monthrange
 from datetime import datetime, timedelta
-import calendar
-from django.db.models import Sum
+from django.db.models import Sum, Case, When, F, IntegerField
+from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear
 from django.utils import timezone
 from rest_framework.response import Response
 from .models import passbook
 from collections import defaultdict
-from django.db.models import Case, When, F, IntegerField
-from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear
-
-from .serializers import ResponseSerializer
+from .serializers import ResponseSerializer # 직렬화기 클래스
 
 CATEGORY_MAPPING = {
     0: '입금',
@@ -24,12 +21,22 @@ CATEGORY_MAPPING = {
     9: '기타'
 }
 
-# 오늘 기준 많이 쓴 곳
+# 많이 쓴 곳 카테고리 탑 3개
 def get_summary_data(transactions):
+
+    # 입 출금 필터링
+    # aggregate 기본 연산 함수 집계
     deposit_total = transactions.filter(inout_type=0).aggregate(total=Sum('tran_amt'))['total'] or 0
     withdraw_total = transactions.filter(inout_type=1).aggregate(total=Sum('tran_amt'))['total'] or 0
 
+    # transaction Django 모델 쿼리셋 사용
+    #.values 쿼리셋을 out_type 필드를 기준으로 그룹화 -> 딕셔너리 형태이며 out_type 키 포함
+    # annotate(total = Sum('tran_amt')) 각 그룹에 대해 tran_amt 필드의 합계를 계산하여 total 새 필드 추가
     category_sums = transactions.filter(inout_type=1).values('out_type').annotate(total=Sum('tran_amt'))
+
+    # 카테고리 정렬
+    # key = lambda x : x['total'] -> key 값은 x의 total key 값을 기준으로 정리
+    # reverse = True 내림차순으로
     category_sums = sorted(category_sums, key=lambda x: x['total'], reverse=True)[:3]
 
     top_categories = [
@@ -46,19 +53,26 @@ def get_summary_data(transactions):
         "top_categories": top_categories
     }
 
-# 월 주 일 기준 분석
+# 전체 분석
 def transaction_mwd() :
+
+    # 현재 시간
     today = timezone.now()
+
+    #오늘 기준으로 1주일 전, 1달 전 값 구하기
     one_week_ago = today - timedelta(days=7)
     one_month_ago = today - timedelta(days=30)
 
-    daily_transactions = passbook.objects.filter(tran_date_time__date=today.date())
+    # 데일리
+    daily_transactions = passbook.objects.filter(tran_date_time__date = today.date())
     daily_summary_data = get_summary_data(daily_transactions)
 
-    weekly_transactions = passbook.objects.filter(tran_date_time__gte=one_week_ago)
+    # 위클리
+    weekly_transactions = passbook.objects.filter(tran_date_time__gte = one_week_ago)
     weekly_summary_data = get_summary_data(weekly_transactions)
 
-    monthly_transactions = passbook.objects.filter(tran_date_time__gte=one_month_ago)
+    # 먼슬리
+    monthly_transactions = passbook.objects.filter(tran_date_time__gte = one_month_ago)
     monthly_summary_data = get_summary_data(monthly_transactions)
 
     response_data = {
@@ -67,83 +81,63 @@ def transaction_mwd() :
         'daily_summary': daily_summary_data,
     }
 
+    # response_data를 직렬화 하여 serializer 변수에 담음
     serializer = ResponseSerializer(response_data)
+
+    # Response 객체를 생성하여 반환
     return Response(serializer.data)
 
+# 위클리, 데일리 삭제 / 기타 카테고리 제외 / 모든 카테고리 합산 전달
 def monthly_statistics(year, month):
-    # 주어진 연도와 월에 대한 트랜잭션 필터링
-    transactions = passbook.objects.filter(tran_date_time__year=year, tran_date_time__month=month)
 
-    # 월별 요약 데이터
-    monthly_summary = get_summary_data(transactions)
+    # 연과 달을 가지고 오기
+    transactions = passbook.objects.filter(tran_date_time__year = year, tran_date_time__month = month)
 
-    # 주간 요약 데이터
-    weekly_summary = []
-    _, days_in_month = calendar.monthrange(year, month)  # 해당 월의 마지막 날짜를 가져옵니다.
+    # 사용 top 3 카테고리 가져오기
+    monthly_top3_summary = get_summary_data(transactions)
 
-    for week in range(1, 6):  # 최대 5주를 고려 (4주 + 1주 초과 가능성)
-        week_start_day = (week - 1) * 7 + 1  # 주의 시작일 계산
-        week_end_day = min(week * 7, days_in_month)  # 주의 종료일 계산, 월의 마지막 날짜를 넘지 않도록 제한
+    # 사용 top 3를 제외한 나머지 카테고리 필터링
+    category_sums = transactions.filter(inout_type=1).values('out_type').annotate(total=Sum('tran_amt'))
+    category_sums = sorted(category_sums, key=lambda x: x['total'], reverse=True)[3:]
 
-        week_start_native = datetime(year, month, week_start_day)
-        week_end_native = datetime(year, month, week_end_day)
-        # 주간 날짜 범위 설정
-        week_start = timezone.make_aware(week_start_native)
-        week_end = timezone.make_aware(week_end_native)
-
-        # 주간 트랜잭션 필터링
-        week_transactions = transactions.filter(tran_date_time__range=[week_start, week_end])
-        weekly_summary.append(get_summary_data(week_transactions))
-
-        # 월의 마지막 날짜에 도달한 경우 루프 종료
-        if week_end_day == days_in_month:
-            break
-
-    # 일일 요약 데이터
-    daily_summary = []
-    for day in range(1, days_in_month + 1):
-        # 특정 날짜의 트랜잭션 필터링
-        daily_transactions = transactions.filter(tran_date_time__day=day)
-        daily_summary.append(get_summary_data(daily_transactions))
-
-    # 일일 평균 계산
-    daily_average_deposit = (
-        int(sum(item['deposit_total'] for item in daily_summary) / days_in_month)
-        if days_in_month > 0 else 0
-    )
-    daily_average_withdraw = (
-        int(sum(item['withdraw_total'] for item in daily_summary) / days_in_month)
-        if days_in_month > 0 else 0
-    )
+    other_categories = [
+        {
+            'out_type': CATEGORY_MAPPING.get(item['out_type'], '알 수 없음'),
+            'amount': item['total']
+        }
+        for item in category_sums
+    ]
 
     return {
-        "monthly_summary": monthly_summary,
-        "weekly_summary": weekly_summary,
-        "daily_summary": {
-            "average_deposit": daily_average_deposit,
-            "average_withdraw": daily_average_withdraw
-        }
+        "monthly_top3_summary": monthly_top3_summary,
+        "other_categories": other_categories
     }
 
+
 def fixed_group():
-    # 현재 날짜로부터 4개월 전 날짜 계산
+    # 현재 날짜로부터 4개월 전 날짜 계산, 대략적인 계산
     today = datetime.today()
-    four_months_ago = today - timedelta(days=4*30)  # 대략적인 4개월 계산
+    four_months_ago = today - timedelta(days=4*30)
 
     return (passbook.objects
-            .filter(tran_date_time__gte=four_months_ago)  # 4개월 동안의 데이터만 필터링
+            .filter(tran_date_time__gte=four_months_ago)
             .annotate(
+                # 날짜 추출
                 day=ExtractDay('tran_date_time'),
                 month=ExtractMonth('tran_date_time'),
                 year=ExtractYear('tran_date_time'),
+
+                # case, when으로 경우 분류
+                # inout_type이 1일 경우 withdrawal에 넣지만 아닐 경우 0을 반환
                 withdrawal_amount=Case(
                     When(inout_type=1, then=F('tran_amt')),
                     default=0,
                     output_field=IntegerField(),
                 )
             )
-            .values('day', 'month', 'year', 'withdrawal_amount', 'inout_type', 'in_des')
-            .order_by('year', 'month', 'day'))
+            .values('day', 'month', 'year', 'withdrawal_amount', 'inout_type', 'in_des') # 값
+            .order_by('year', 'month', 'day')) # 정렬 방식
+
 
 def fixed_analysis_patterns():
     transactions_by_day = fixed_group()
@@ -176,28 +170,46 @@ def fixed_analysis_patterns():
     }
 
 
-def calendar_amount(year, month):
-    # Prepare a dictionary to hold daily totals
-    daily_totals = {}
+# 요청 연, 월, 일을 받았을 경우 그 날짜에 해당하는 입출금 합산 값, 입출금처를 보내줌
+def calendar_amount(year, month, day):
 
-    # 1부터 해당 월의 마지막 날까지의 일자 가져오기
-    last_day = monthrange(year, month)[1]  # 해당 월의 마지막 날
-    for day in range(1, last_day + 1):  # 각 날짜에 대해 반복
-        # 필터링: 해당 날짜의 거래 내역
-        daily_transactions = passbook.objects.filter(
+    # 해당 날짜의 거래 내역 가져오기
+    daily_transactions = passbook.objects.filter(
             tran_date_time__year=year,
             tran_date_time__month=month,
             tran_date_time__day=day
-        )
+    )
 
-        # 입금과 출금 합계 계산
-        deposit_total = daily_transactions.filter(inout_type=0).aggregate(total=Sum('tran_amt'))['total'] or 0
-        withdraw_total = daily_transactions.filter(inout_type=1).aggregate(total=Sum('tran_amt'))['total'] or 0
+    # 필터링1 : 해당 날짜 거래내역 가져오기
+    deposit_transactions = daily_transactions.filter(inout_type=0)
+    withdraw_transactions = daily_transactions.filter(inout_type=1)
 
-        # 결과를 딕셔너리에 추가
-        daily_totals[day] = {
-            'deposits': deposit_total,
-            'withdrawals': withdraw_total
-        }
+    # 필터링2 : 입금과 출금 합계 계산
+    deposit_total = daily_transactions.filter(inout_type=0).aggregate(total=Sum('tran_amt'))['total'] or 0
+    withdraw_total = daily_transactions.filter(inout_type=1).aggregate(total=Sum('tran_amt'))['total'] or 0
+
+    # 데이터 처리 : 거래 내역의 날짜 포맷 변경
+    deposit_details = [
+        {
+            **transaction,
+            'tran_date_time': transaction['tran_date_time'].strftime("%Y-%m-%d %H:%M")
+        } for transaction in deposit_transactions.values('tran_amt', 'in_des', 'tran_date_time')
+    ]
+
+    withdraw_details = [
+        {
+            **transaction,
+            'tran_date_time': transaction['tran_date_time'].strftime("%Y-%m-%d %H:%M")
+        } for transaction in withdraw_transactions.values('tran_amt', 'in_des', 'tran_date_time')
+    ]
+
+    # 결과 딕셔너리 생성
+    daily_totals = {
+        'deposits_total': deposit_total,
+        'withdrawals_total': withdraw_total,
+        'deposit_details': deposit_details,
+        'withdraw_details': withdraw_details
+    }
+
 
     return daily_totals
