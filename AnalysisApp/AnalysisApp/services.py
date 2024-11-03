@@ -118,6 +118,15 @@ def monthly_statistics(year, month):
                 'amount': item['total']
             })
 
+    # 기타 항목의 총합 계산
+    other_total = transactions.filter(inout_type=1, out_type=9).aggregate(total=Sum('tran_amt'))['total'] or 0
+
+    # 기타 항목 추가
+    other_categories.append({
+        'out_type': CATEGORY_MAPPING.get(9, '기타'),  # 기본적으로 '기타'로 설정
+        'amount': other_total
+    })
+
     return {
         "monthly_top3_summary": monthly_top3_summary,
         "other_categories": other_categories
