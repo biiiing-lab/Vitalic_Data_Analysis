@@ -45,6 +45,7 @@ def get_summary_data(transactions):
             'amount': item['total']
         }
         for item in category_sums
+        if CATEGORY_MAPPING.get(item['out_type'], '알 수 없음') != '기타'  # '기타' 제외
     ]
 
     return {
@@ -100,12 +101,13 @@ def monthly_statistics(year, month):
     category_sums = transactions.filter(inout_type=1).values('out_type').annotate(total=Sum('tran_amt'))
     category_sums = sorted(category_sums, key=lambda x: x['total'], reverse=True)[3:]
 
-    other_categories = [
+    other_categories =  [
         {
             'out_type': CATEGORY_MAPPING.get(item['out_type'], '알 수 없음'),
             'amount': item['total']
         }
         for item in category_sums
+        if CATEGORY_MAPPING.get(item['out_type'], '알 수 없음') != '기타'  # '기타' 제외
     ]
 
     return {
