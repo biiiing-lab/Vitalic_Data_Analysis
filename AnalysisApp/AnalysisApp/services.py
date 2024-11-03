@@ -34,19 +34,23 @@ def get_summary_data(transactions):
     # annotate(total = Sum('tran_amt')) 각 그룹에 대해 tran_amt 필드의 합계를 계산하여 total 새 필드 추가
     category_sums = transactions.filter(inout_type=1).values('out_type').annotate(total=Sum('tran_amt'))
 
+    # 탑 3 카테고리 (기타 제외)
+    top_categories = []
+    used_categories = set()
+
     # 카테고리 정렬
     # key = lambda x : x['total'] -> key 값은 x의 total key 값을 기준으로 정리
     # reverse = True 내림차순으로
-    category_sums = sorted(category_sums, key=lambda x: x['total'], reverse=True)[:4]
+    category_sums = sorted(category_sums, key=lambda x: x['total'], reverse=True)
 
-    top_categories = [
-        {
-            'out_type': CATEGORY_MAPPING.get(item['out_type'], '알 수 없음'),
-            'amount': item['total']
-        }
-        for item in category_sums
-        if CATEGORY_MAPPING.get(item['out_type'], '알 수 없음') != '기타'  # '기타' 제외
-    ]
+    for item in category_sums:
+        category_name = CATEGORY_MAPPING.get(item['out_type'], '알 수 없음')
+        if category_name != '기타' and len(top_categories) < 3:
+            top_categories.append({
+                'out_type': category_name,
+                'amount': item['total']
+            })
+            used_categories.add(category_name)
 
     return {
         "deposit_total": deposit_total,
@@ -98,17 +102,21 @@ def monthly_statistics(year, month):
     monthly_top3_summary = get_summary_data(transactions)
 
     # 사용 top 3를 제외한 나머지 카테고리 필터링
-    category_sums = transactions.filter(inout_type=1).values('out_type').annotate(total=Sum('tran_amt'))
-    category_sums = sorted(category_sums, key=lambda x: x['total'], reverse=True)[3:]
+    # 사용 top 3 카테고리 이름만 추출
+    top3_categories = {cat['out_type'] for cat in monthly_top3_summary['top_categories']}
 
-    other_categories =  [
-        {
-            'out_type': CATEGORY_MAPPING.get(item['out_type'], '알 수 없음'),
-            'amount': item['total']
-        }
-        for item in category_sums
-        if CATEGORY_MAPPING.get(item['out_type'], '알 수 없음') != '기타'  # '기타' 제외
-    ]
+    # 사용 top 3를 제외한 나머지 카테고리 필터링
+    category_sums = transactions.filter(inout_type=1).values('out_type').annotate(total=Sum('tran_amt'))
+
+    other_categories = []
+
+    for item in sorted(category_sums, key=lambda x: x['total'], reverse=True):
+        category_name = CATEGORY_MAPPING.get(item['out_type'], '알 수 없음')
+        if category_name != '기타' and category_name not in top3_categories:
+            other_categories.append({
+                'out_type': category_name,
+                'amount': item['total']
+            })
 
     return {
         "monthly_top3_summary": monthly_top3_summary,
