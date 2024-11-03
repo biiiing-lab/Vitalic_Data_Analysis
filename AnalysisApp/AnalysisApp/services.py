@@ -37,7 +37,7 @@ def get_summary_data(transactions):
     # 카테고리 정렬
     # key = lambda x : x['total'] -> key 값은 x의 total key 값을 기준으로 정리
     # reverse = True 내림차순으로
-    category_sums = sorted(category_sums, key=lambda x: x['total'], reverse=True)[:3]
+    category_sums = sorted(category_sums, key=lambda x: x['total'], reverse=True)[:4]
 
     top_categories = [
         {
