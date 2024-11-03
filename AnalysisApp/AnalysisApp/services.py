@@ -230,5 +230,35 @@ def calendar_amount(year, month, day):
         'withdraw_details': withdraw_details
     }
 
-
     return daily_totals
+
+
+# 해당 날짜의 모든 값을 다 보내야함
+def calendar_all_amount(year, month):
+    # 월의 마지막 날짜 계산
+    last_day = (datetime(year, month, 1) + timedelta(days=31)).replace(day=1) - timedelta(days=1)
+
+    # 월의 모든 날짜에 대한 입출금 합산 결과를 저장할 리스트
+    monthly_totals = []
+
+    # 각 날짜에 대해 입출금 합산 계산
+    for day in range(1, last_day.day + 1):
+        daily_transactions = passbook.objects.filter(
+            tran_date_time__year=year,
+            tran_date_time__month=month,
+            tran_date_time__day=day
+        )
+
+        deposit_total = daily_transactions.filter(inout_type=0).aggregate(total=Sum('tran_amt'))['total'] or 0
+        withdraw_total = daily_transactions.filter(inout_type=1).aggregate(total=Sum('tran_amt'))['total'] or 0
+
+        # 날짜별 결과 딕셔너리 생성
+        daily_totals = {
+            'day': day,
+            'deposit': deposit_total,
+            'withdraw': withdraw_total
+        }
+
+        monthly_totals.append(daily_totals)
+
+    return monthly_totals

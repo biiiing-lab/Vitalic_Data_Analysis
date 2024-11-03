@@ -1,6 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
-from .services import fixed_analysis_patterns, calendar_amount, monthly_statistics, transaction_mwd
+from .services import fixed_analysis_patterns, calendar_amount, monthly_statistics, transaction_mwd, calendar_all_amount
+
 
 # 월, 주, 일 기준 분석
 @api_view(['POST'])
@@ -29,3 +30,10 @@ def calendar_return(request):
     daily_totals = calendar_amount(year, month, day)
 
     return JsonResponse(daily_totals)
+
+@api_view(['POST'])
+def monthly_return(request):
+    year = request.data.get('year')
+    month = request.data.get('month')
+    daily_totals = calendar_all_amount(year, month)
+    return JsonResponse(daily_totals, safe=False)
