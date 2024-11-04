@@ -12,54 +12,53 @@ from matplotlib import ticker
 from .models import passbook
 from .services import CATEGORY_MAPPING
 
-# 한글 폰트 경로 설정 (Windows에서 맑은 고딕 폰트 경로)
-font_path = "C:/Windows/Fonts/malgun.ttf"  # 맑은 고딕 경로 예시
-fontprop = fm.FontProperties(fname=font_path)
-
-# 전체 폰트 설정
-plt.rc("font", family=fontprop.get_name())
+font_path = "C:/Windows/Fonts/H2GTRE.TTF"
+fontprop = fm.FontProperties(fname=font_path) # FontProperties = 폰트 속성을 설정할 수 있는 객체 생성
+plt.rc("font", family=fontprop.get_name()) # 기본 폰트 설정
 
 # 기본 통계 : 입금, 출금 횟수, 입출금 뺀 나머지 잔액 및 입출금 금액 시각화
+# 데이터 필터링, 그룹화, 정렬, 변환, 집계 -> 시각화
 def plot_basic_visualization(start_date, end_date):
-
     queryset = (
-        passbook.objects.filter(tran_date_time__range=[start_date, end_date])
-        .annotate(period=TruncMonth("tran_date_time"))
-        .values("period")
+        passbook.objects.filter(tran_date_time__range=[start_date, end_date]) # 기간 동안 필터링
+        .annotate(period=TruncMonth("tran_date_time")) # 월 단위로 데이터 묶기, period 필드를 생성하여 월로 그룹화
+        .values("period") # 월별 그룹 생성
         .annotate(
-            transaction_count=Count("id"),
+            transaction_count=Count("id"), # 거래 건수
             deposit_total=Sum("tran_amt", filter=Q(inout_type=0)),  # 입금 합계
             withdrawal_total=Sum("tran_amt", filter=Q(inout_type=1)),  # 출금 합계
-            remain_total=F('deposit_total') - F('withdrawal_total')
+            remain_total=F('deposit_total') - F('withdrawal_total') # 입출금 빼기 나머지
         )
-        .order_by("period")
+        .order_by("period") # 기간별 정렬, 월 순서대로 결과 반환
     )
 
+    # list(queryset) Django ORM으로 작성된  DB  쿼리 결과, dict 리스트
+    # 데이터를 테이블 형식으로 저장, Key = Column, Value = Row
     df = pd.DataFrame(list(queryset))
 
-    # 기간 형식 설정
-    df["period"] = df["period"].dt.strftime("%Y-%m")
+    df["period"] = df["period"].dt.strftime("%Y-%m") # 문자열 형식 변환
+
+    # 그래프 생성 시 자주 생성하는 함수, 가로 10인치, 세로 6인치
+    # Figure(전체 그래프 영역), ax1(개별 플롯을 그리는데 사용하는 Axes 객체) -> 제목, 축, 레이블 등 가능
     fig, ax1 = plt.subplots(figsize=(10, 6))
 
     # 첫 번째 y축: 입출금 횟수 (막대 그래프)
-    ax1.bar(df["period"], df["transaction_count"], color="skyblue", label="입출금 횟수")
+    ax1.bar(df["period"], df["transaction_count"], color="skyblue", label="입출금 횟수")  # x, y, 범례
     ax1.set_xlabel("기간")
     ax1.set_ylabel("입출금 횟수", color="blue")
-    ax1.tick_params(axis="y", labelcolor="blue")
+    ax1.tick_params(axis="y", labelcolor="blue") # 축의 눈금과 눈금 레이블 스타일 설정, y축 대상, 레이블 일관성 유지
 
     # 두 번째 y축: 입금, 출금, 입금 - 출금 나머지 금액 그래프
-    ax2 = ax1.twinx()
+    ax2 = ax1.twinx() # a1x와 동일한 x축 공유하는 두번 째 y축 생성
     ax2.plot(df["period"], df["withdrawal_total"], color="green", marker="o", label="출금 금액 합계")
     ax2.plot(df["period"], df["deposit_total"], color="red", marker="o", linestyle="--", label="입금 금액 합계")
     ax2.plot(df["period"], df["remain_total"], color="orange", marker="o", linestyle=":", label="남은 금액")  # 잔여 금액 추가
     ax2.set_ylabel("금액 (입금 & 출금)", color="green")
     ax2.tick_params(axis="y", labelcolor="green")
 
-    # y축 눈금을 10만 원 단위로 설정
-    ax2.yaxis.set_major_locator(mticker.MultipleLocator(300000))  # 10만 원 간격 설정
-    ax2.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 10000)}만 원"))  # 10,000으로 나누고 "만 원" 추가
+    ax2.yaxis.set_major_locator(mticker.MultipleLocator(300000))
+    ax2.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 10000)}만 원"))
 
-    # 그래프 제목 및 범례 추가
     fig.suptitle("기간별 입출금 횟수 및 금액 합계")
     ax1.legend(loc="upper left")
     ax2.legend(loc="upper right")
@@ -71,6 +70,9 @@ def plot_basic_visualization(start_date, end_date):
     plt.close()
 
     return pdf_path  # PDF 경로 반환
+
+
+
 
 # 월 초, 월 말 비교 그래프
 def plot_balance_change_beginning_and_end_each_month_visualization(start_date, end_date):
@@ -149,6 +151,9 @@ def plot_balance_change_beginning_and_end_each_month_visualization(start_date, e
     return pdf_path  # PDF 경로 반환
 
 
+
+
+
 # 카테고리별 사용 빈도, 평균 사용 시간대 산포도
 def plot_category_time_using_avg(start_date, end_date):
     # 6개월 동안의 데이터 필터링
@@ -193,6 +198,11 @@ def plot_category_time_using_avg(start_date, end_date):
     plt.close()
 
     return pdf_path  # PDF 경로 반환
+
+
+
+
+
 
 # 요일, 시간대별 패턴
 def plot_week_and_time_pattern(start_date, end_date):
