@@ -1,6 +1,14 @@
+from datetime import timedelta
+
+from django.utils import timezone
+
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
+
+from .email import merge_pdfs, send_email
 from .services import fixed_analysis_patterns, calendar_amount, monthly_statistics, transaction_mwd, calendar_all_amount
+from .visualization import plot_basic_visualization, plot_balance_change_beginning_and_end_each_month_visualization, \
+    plot_category_time_using_avg, plot_week_and_time_pattern
 
 
 # 월, 주, 일 기준 분석
@@ -11,9 +19,9 @@ def transaction_summary(request):
 # 월별 많이 사용한 곳 입출금 합산
 @api_view(['POST'])
 def monthly_summary(request):
-    year = request.data.get('year')
-    month = request.data.get('month')
-    return JsonResponse(monthly_statistics(year, month), safe=False)
+    monthly_statistic = monthly_statistics(request.data.get('year'),
+                                           request.data.get('month'))
+    return JsonResponse(monthly_statistic, safe=False)
 
 # 고정 지출 분석
 @api_view(['POST'])
@@ -23,17 +31,23 @@ def fixed_expenses(request):
 # 선택 캘린더별 사용 내역
 @api_view(['POST'])
 def calendar_return(request):
-    year = request.data.get('year')
-    month = request.data.get('month')
-    day = request.data.get('day')
+    daily_calendar_totals = calendar_amount(request.data.get('year'),
+                                   request.data.get('month'),
+                                   request.data.get('day'))
+    return JsonResponse(daily_calendar_totals)
 
-    daily_totals = calendar_amount(year, month, day)
-
-    return JsonResponse(daily_totals)
-
+# 전체 캘린더
 @api_view(['POST'])
 def monthly_return(request):
-    year = request.data.get('year')
-    month = request.data.get('month')
-    daily_totals = calendar_all_amount(year, month)
-    return JsonResponse(daily_totals, safe=False)
+    monthly_calendar_totals = calendar_all_amount(request.data.get('year'),
+                                       request.data.get('month'))
+    return JsonResponse(monthly_calendar_totals, safe=False)
+
+# 시각화 요청 PDF
+@api_view(['POST'])
+def visualization_pdf(request) :
+    email = request.data.get('email')
+    start_date = timezone.now() - timedelta(days=180) # 6개월 데이터 조회 및 시각화
+    end_date = timezone.now()
+    send_email(start_date, end_date, email)
+    return JsonResponse("이메일 차트 발송 완료", safe=False)
