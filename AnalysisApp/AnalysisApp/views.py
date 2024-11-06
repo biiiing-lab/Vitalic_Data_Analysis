@@ -1,4 +1,5 @@
 from datetime import timedelta
+from telnetlib import STATUS
 
 from django.http import JsonResponse
 from django.utils import timezone
@@ -54,10 +55,10 @@ def visualization_pdf(request) :
     end_date = timezone.now()
     result = send_email(start_date, end_date, email)
 
-    if(result) :
-        return JsonResponse("이메일 차트 발송 완료", safe=False)
+    if result:
+        return JsonResponse("차트 발송 완료", safe=False, status=200)
     else:
-        return JsonResponse("이메일 차트 발송 실패", safe=False)
+        return JsonResponse("차트 발송 실패", safe=False, status=500)
 
 
 @api_view(['POST'])
