@@ -6,6 +6,12 @@ from rest_framework.decorators import api_view
 
 from .email import send_email
 from .services import fixed_analysis_patterns, calendar_amount, monthly_statistics, transaction_mwd, calendar_all_amount
+from AnalysisApp.AnalysisApp.visualization import (
+    plot_basic_visualization,
+    plot_balance_change_beginning_and_end_each_month_visualization,
+    plot_category_time_using_avg,
+    plot_week_and_time_pattern
+)
 
 
 # 월, 주, 일 기준 분석
@@ -40,11 +46,11 @@ def monthly_return(request):
                                        request.data.get('month'))
     return JsonResponse(monthly_calendar_totals, safe=False)
 
-# 시각화 요청 PDF
+# 시각화 요청 PDF : 4개 시각화 한 페이지 처리
 @api_view(['POST'])
 def visualization_pdf(request) :
     email = request.data.get('email')
-    start_date = timezone.now() - timedelta(days=180) # 6개월 데이터 조회 및 시각화
+    start_date = timezone.now() - timedelta(days=180) # 오늘 기준 6개월 데이터 조회 및 시각화
     end_date = timezone.now()
     result = send_email(start_date, end_date, email)
 
@@ -52,3 +58,11 @@ def visualization_pdf(request) :
         return JsonResponse("이메일 차트 발송 완료", safe=False)
     else:
         return JsonResponse("이메일 차트 발송 실패", safe=False)
+
+
+@api_view(['POST'])
+def visualization_test(request) :
+    start_date = timezone.now() - timedelta(days=180) # 오늘 기준 6개월 데이터 조회 및 시각화
+    end_date = timezone.now()
+    img = plot_basic_visualization(start_date, end_date)
+    return JsonResponse(img, safe=False)

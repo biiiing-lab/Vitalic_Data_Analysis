@@ -1,36 +1,55 @@
-
 import os
 import smtplib
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from PIL import Image
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
-from PyPDF2 import PdfMerger
-
-from AnalysisApp.AnalysisApp.visualization import plot_basic_visualization, \
-    plot_balance_change_beginning_and_end_each_month_visualization, plot_category_time_using_avg, \
+from AnalysisApp.AnalysisApp.visualization import (
+    plot_basic_visualization,
+    plot_balance_change_beginning_and_end_each_month_visualization,
+    plot_category_time_using_avg,
     plot_week_and_time_pattern
+)
+
+def conbined_make_pdf(image_paths, output_pdf_path):
+    # 이미지 파일을 불러와서 PIL Image 객체로 변환
+    images = [Image.open(img_path) for img_path in image_paths]
+
+    # PDF 파일을 생성
+    with PdfPages(output_pdf_path) as pdf:
+        # A4 가로 비율에 맞춰 크기 설정, dpi를 높여 화질 개선
+        fig, axs = plt.subplots(2, 2, figsize=(11.7, 8.3), dpi=300)  # A4 가로 비율 (11.7 x 8.3 inches)
+
+        # 각 이미지에 대해 subplot에 배치
+        for i, ax in enumerate(axs.flat):
+            if i < len(images):  # 이미지가 있는 경우에만 추가
+                ax.imshow(images[i])
+            ax.axis('off')  # 축 숨기기
+
+        # 여백을 최소화하고 페이지 저장
+        plt.tight_layout(pad=0.5)
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+    print(f"PDF 파일이 성공적으로 생성되었습니다: {output_pdf_path}")
 
 
-# pdf 병합
-def merge_pdfs(pdf_list, output_filename):
-    merger = PdfMerger()
-    for pdf in pdf_list:
-        merger.append(pdf)
-    merger.write(output_filename)
-    merger.close()
 
 def send_email(start_date, end_date, email):
-    # 차트 가져오기
-    pdf_paths = []
-    pdf_paths.append(plot_basic_visualization(start_date, end_date))
-    pdf_paths.append(plot_balance_change_beginning_and_end_each_month_visualization(start_date, end_date))
-    pdf_paths.append(plot_category_time_using_avg(start_date, end_date))
-    pdf_paths.append(plot_week_and_time_pattern(start_date, end_date))
+    # Get image paths instead of PDF paths
+    image_paths = [
+        plot_basic_visualization(start_date, end_date),
+        plot_balance_change_beginning_and_end_each_month_visualization(start_date, end_date),
+        plot_category_time_using_avg(start_date, end_date),
+        plot_week_and_time_pattern(start_date, end_date)
+    ]
 
-    # PDF 병합
-    merged_pdf_path = "C:/Users/jangy/Downloads/Vitailic/merged_plots.pdf"
-    merge_pdfs(pdf_paths, merged_pdf_path)
+    # Create the combined PDF
+    combined_pdf_path = "C:/Users/jangy/Downloads/Vitailic/all_result.pdf"
+    conbined_make_pdf(image_paths, combined_pdf_path)
 
     from_email = os.getenv("VITALIC_EMAIL")
     password = os.getenv("VITALIC_PASSWORD")
@@ -40,12 +59,12 @@ def send_email(start_date, end_date, email):
     msg['To'] = email # 수신자
     msg['Subject'] = f"{email}님의 분석 결과 PDF" # 이메일 제목
 
-    msg.attach(MIMEText("첨부된 PDF 파일을 확인해 주세요", 'utf-8'))
+    msg.attach(MIMEText("첨부된 PDF 파일을 확인해 주세요"))
 
     #  PDF 파일 첨부
-    with open(merged_pdf_path, "rb") as attachment: # path  경로의 파일을 읽기 모드로 열고, 변수에 저장
-        part = MIMEApplication(attachment.read(), Name=os.path.basename(merged_pdf_path)) # 파일 이름 지정, 첨부파일로 인식
-        part['Content-Disposition'] = f'attachment; filename="{os.path.basename(merged_pdf_path)}"' # 헤더에 첨부 파일로서의 정보 추가, 이메일 클라이언트에서 파일을 attachment 형식으로 인식
+    with open(combined_pdf_path, "rb") as attachment: # path  경로의 파일을 읽기 모드로 열고, 변수에 저장
+        part = MIMEApplication(attachment.read(), Name=os.path.basename(combined_pdf_path)) # 파일 이름 지정, 첨부파일로 인식
+        part['Content-Disposition'] = f'attachment; filename="{os.path.basename(combined_pdf_path)}"' # 헤더에 첨부 파일로서의 정보 추가, 이메일 클라이언트에서 파일을 attachment 형식으로 인식
         msg.attach(part) # 첨부파일을 msg 객체에 추가하여 이메일 포함
 
     # SMTP 서버 설정

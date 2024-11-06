@@ -16,6 +16,10 @@ font_path = "C:/Windows/Fonts/H2GTRE.TTF"
 fontprop = fm.FontProperties(fname=font_path) # FontProperties = 폰트 속성을 설정할 수 있는 객체 생성
 plt.rc("font", family=fontprop.get_name()) # 기본 폰트 설정
 
+# 공통 설정
+figsize = (10, 6)
+fontsize = 12
+
 # 기본 통계 : 입금, 출금 횟수, 입출금 뺀 나머지 잔액 및 입출금 금액 시각화
 # 데이터 필터링, 그룹화, 정렬, 변환, 집계 -> 시각화
 def plot_basic_visualization(start_date, end_date):
@@ -40,38 +44,40 @@ def plot_basic_visualization(start_date, end_date):
 
     # 그래프 생성 시 자주 생성하는 함수, 가로 10인치, 세로 6인치
     # Figure(전체 그래프 영역), ax1(개별 플롯을 그리는데 사용하는 Axes 객체) -> 제목, 축, 레이블 등 가능
-    fig, ax1 = plt.subplots(figsize=(10, 6))
+    fig, ax1 = plt.subplots(figsize=figsize)
 
     # 첫 번째 y축: 입출금 횟수 (막대 그래프)
-    ax1.bar(df["period"], df["transaction_count"], color="skyblue", label="입출금 횟수")  # x, y, 범례
-    ax1.set_xlabel("기간")
-    ax1.set_ylabel("입출금 횟수", color="blue")
-    ax1.tick_params(axis="y", labelcolor="blue") # 축의 눈금과 눈금 레이블 스타일 설정, y축 대상, 레이블 일관성 유지
+    ax1.bar(df["period"], df["transaction_count"],
+            color="#f6aa1c", edgecolor="none",
+            label="입출금 횟수", linewidth=0, width=0.6, capstyle='round')
+    ax1.set_xlabel("기간", color="black", fontsize=fontsize)
+    ax1.set_ylabel("입출금 횟수", color="black", fontsize=fontsize)
+    ax1.tick_params(axis="y", labelcolor="black")
 
-    # 두 번째 y축: 입금, 출금, 입금 - 출금 나머지 금액 그래프
-    ax2 = ax1.twinx() # a1x와 동일한 x축 공유하는 두번 째 y축 생성
-    ax2.plot(df["period"], df["withdrawal_total"], color="green", marker="o", label="출금 금액 합계")
-    ax2.plot(df["period"], df["deposit_total"], color="red", marker="o", linestyle="--", label="입금 금액 합계")
-    ax2.plot(df["period"], df["remain_total"], color="orange", marker="o", linestyle=":", label="남은 금액")  # 잔여 금액 추가
-    ax2.set_ylabel("금액 (입금 & 출금)", color="green")
-    ax2.tick_params(axis="y", labelcolor="green")
+    # 두 번째 y축: 입금, 출금, 잔여 금액 그래프
+    ax2 = ax1.twinx()
+    ax2.plot(df["period"], df["withdrawal_total"], color="#621708", marker="o", markersize=7, label="출금 금액 합계")
+    ax2.plot(df["period"], df["deposit_total"], color="#941b0c", marker="o", linestyle="--", markersize=7,
+             label="입금 금액 합계")
+    ax2.plot(df["period"], df["remain_total"], color="#f6aa1c", marker="o", linestyle=":", markersize=7, label="남은 금액")
+    ax2.set_ylabel("금액 (입금 & 출금)", color="black", fontsize=fontsize)
+    ax2.tick_params(axis="y", labelcolor="black")
 
     ax2.yaxis.set_major_locator(mticker.MultipleLocator(300000))
     ax2.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 10000)}만 원"))
 
-    fig.suptitle("기간별 입출금 횟수 및 금액 합계")
-    ax1.legend(loc="upper left")
-    ax2.legend(loc="upper right")
+    fig.suptitle("기간별 입출금 횟수 및 금액 합계", color="black")
+    ax1.legend(loc="upper left", frameon=False)
+    ax2.legend(loc="upper right", frameon=False)
     plt.xticks(rotation=45)
     plt.tight_layout()
 
-    pdf_path = "C:/Users/jangy/Downloads/Vitailic/plot_basic_visualization.pdf"
-    plt.savefig(pdf_path)
+    img_path = "C:/Users/jangy/Downloads/Vitailic/plot_basic_visualization.png"
+    plt.savefig(img_path, format='png', dpi=300)  # dpi를 높이면 해상도가 증가
+    plt.show()
     plt.close()
 
-    return pdf_path  # PDF 경로 반환
-
-
+    return img_path  # 이미지 경로 반환
 
 
 # 월 초, 월 말 비교 그래프
@@ -124,17 +130,12 @@ def plot_balance_change_beginning_and_end_each_month_visualization(start_date, e
 
     # 두 데이터프레임 합치기
     combined_df = pd.concat([beginning_df, ending_df], ignore_index=True)
-
-    # 시각화
-    plt.figure(figsize=(12, 6))
-
-    # 막대 그래프 그리기
-    sns.histplot(data=combined_df, x='period', weights='beginning_balance', hue='balance_type', multiple='stack', kde=False, palette=['skyblue', 'lightcoral'])
-
-    # x축 및 y축 레이블 설정
-    plt.xlabel('기간', fontsize=12)
-    plt.ylabel('잔액', fontsize=12)
-    plt.title('매월 초와 말의 잔액 변화', fontsize=14)
+    plt.figure(figsize=figsize)
+    sns.histplot(data=combined_df, x='period', weights='beginning_balance', hue='balance_type', multiple='stack',
+                 kde=False, palette=['skyblue', 'lightcoral'])
+    plt.xlabel('기간', fontsize=fontsize)
+    plt.ylabel('잔액', fontsize=fontsize)
+    plt.title('매월 초와 말의 잔액 변화', fontsize=fontsize)
     plt.xticks(rotation=45)
 
     # y축 눈금을 백 만원 단위로 설정
@@ -144,11 +145,11 @@ def plot_balance_change_beginning_and_end_each_month_visualization(start_date, e
 
     plt.tight_layout()
 
-    pdf_path = "C:/Users/jangy/Downloads/Vitailic/plot_balance_change_beginning_and_end_each_month_visualization.pdf"
-    plt.savefig(pdf_path)
+    img_path = "C:/Users/jangy/Downloads/Vitailic/plot_balance_change_beginning_and_end_each_month_visualization.png"
+    plt.savefig(img_path, format='png', dpi=300)  # dpi를 높이면 해상도가 증가
     plt.close()
 
-    return pdf_path  # PDF 경로 반환
+    return img_path  # 이미지 경로 반환
 
 
 
@@ -180,11 +181,11 @@ def plot_category_time_using_avg(start_date, end_date):
     final_df = final_df.rename(columns={'category_name_x': 'category_name'})  # category_name 열을 하나로 통합
 
     # 산포도 그래프 생성
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=figsize)
     sns.scatterplot(data=final_df, x='avg_hour', y='count', hue='category_name', s=100)
-    plt.xlabel('사용 평균 시간대')
-    plt.ylabel('거래 횟수')
-    plt.title('6개월 동안 카테고리별 사용 빈도와 평균 사용 시간대')
+    plt.xlabel('사용 평균 시간대', fontsize=fontsize)
+    plt.ylabel('거래 횟수', fontsize=fontsize)
+    plt.title('6개월 동안 카테고리별 사용 빈도와 평균 사용 시간대', fontsize=fontsize)
 
     # x축 시간대를 '09시'부터 '24시'까지로 설정
     hours = [f"{int(h):02d}시" for h in range(9, 25)]
@@ -193,11 +194,11 @@ def plot_category_time_using_avg(start_date, end_date):
     plt.legend(title='Category')
     plt.grid(True)
 
-    pdf_path = "C:/Users/jangy/Downloads/Vitailic/plot_category_time_using_avg.pdf"
-    plt.savefig(pdf_path)
+    img_path = "C:/Users/jangy/Downloads/Vitailic/plot_category_time_using_avg.png"
+    plt.savefig(img_path, format='png', dpi=300)  # dpi를 높이면 해상도가 증가
     plt.close()
 
-    return pdf_path  # PDF 경로 반환
+    return img_path  # 이미지 경로 반환
 
 
 
@@ -224,7 +225,7 @@ def plot_week_and_time_pattern(start_date, end_date):
     freq_df['day_of_week'] = freq_df['day_of_week'].apply(lambda x: day_labels[x])
 
     # 버블 차트 생성
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=figsize)
     bubble = plt.scatter(
         x=freq_df['hour'],
         y=freq_df['day_of_week'],
@@ -244,10 +245,9 @@ def plot_week_and_time_pattern(start_date, end_date):
     plt.xticks(range(7, 25), [f"{h}시" for h in range(7, 25)])  # 09시부터 24시까지 표시
 
     plt.grid(True, linestyle='--', alpha=0.5)
-    # 결과 그래프를 PDF 파일로 저장
-    # PDF 파일로 저장
-    pdf_path = "C:/Users/jangy/Downloads/Vitailic/plot_week_and_time_pattern.pdf"
-    plt.savefig(pdf_path)
+
+    img_path = "C:/Users/jangy/Downloads/Vitailic/plot_week_and_time_pattern.png"
+    plt.savefig(img_path, format='png', dpi=300)  # dpi를 높이면 해상도가 증가
     plt.close()
 
-    return pdf_path  # PDF 경로 반환
+    return img_path  # 이미지 경로 반환
