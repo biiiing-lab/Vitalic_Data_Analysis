@@ -263,9 +263,13 @@
 ##### 차트 설명
 - **matplotlib.pyplot** 사용
 - 막대 그래프 : 입출금 횟수
-- 선 그래프 : 입금 / 출금 / 잔액 변동 
-- 결과물 추가
-- 사진 추가 예정
+- 선 그래프 : 입금 / 출금 / 잔액 변동
+
+
+<br>
+
+  ![plot_basic_visualization](https://github.com/user-attachments/assets/34828894-66d1-4af8-8cf8-86f519d6a62a)
+
 
 <br>
 
@@ -286,7 +290,12 @@
 ##### 차트 설명
 - **matplotlib.pyplot** 사용으로 x, y 프레임 설정
 - **seaborn** 의 **hisplot** 으로 시각화
-- 사진 추가 예정
+
+
+<br>
+
+![plot_balance_change_beginning_and_end_each_month_visualization](https://github.com/user-attachments/assets/fcd2f234-77f0-4fe8-879f-661776e2db85)
+
 
 <br>
 
@@ -303,7 +312,11 @@
 ##### 차트 설명
 - **matplotlib.pyplot** 사용으로 x, y 프레임 설정 및 시간 설정
 - **seaborn** 의 **scatterplot** 으로 시각화
-- 사진 추가 예정
+
+
+<br>
+
+![plot_category_time_using_avg](https://github.com/user-attachments/assets/385b9c97-8788-48d9-9c73-68479b1ef496)
 
 <br>
 
@@ -320,13 +333,21 @@
 - **scatter**로 버블 생성 및 크기 조절
 - **colorbar** 를 통하여 사용 빈도를 나타냄
 - **xticks** 로 시간 범위 설정
-- 사진 추가 예정
+
+
+<br>
+  
+![plot_week_and_time_pattern](https://github.com/user-attachments/assets/ce806eb9-35a1-456a-ab9a-18c7607e773b)
+
 
 <br>
 
 ### 메일 서비스
 #### 4개의 분석 차트를 한 페이지의 PDF 변환
-- 사진 추가 예정
+<br>
+![image](https://github.com/user-attachments/assets/5f252820-bc3f-415b-9e76-213653bd8c6d)
+<br>
+
 #### SMTP Google Email PDF 발송
 - 사진 추가 예정
 
