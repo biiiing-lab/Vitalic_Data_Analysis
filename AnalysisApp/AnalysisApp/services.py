@@ -1,4 +1,3 @@
-from calendar import monthrange
 from datetime import datetime, timedelta
 from django.db.models import Sum, Case, When, F, IntegerField
 from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear

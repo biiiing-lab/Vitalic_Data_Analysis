@@ -8,7 +8,7 @@ import seaborn as sns
 from django.db.models import Sum, Count, Q, F
 from django.db.models.functions import TruncMonth
 from matplotlib import ticker
-
+import matplotlib.colors as mcolors
 from .models import passbook
 from .services import CATEGORY_MAPPING
 
@@ -59,11 +59,11 @@ def plot_basic_visualization(start_date, end_date):
     ax2.plot(df["period"], df["withdrawal_total"], color="#621708", marker="o", markersize=7, label="출금 금액 합계")
     ax2.plot(df["period"], df["deposit_total"], color="#941b0c", marker="o", linestyle="--", markersize=7,
              label="입금 금액 합계")
-    ax2.plot(df["period"], df["remain_total"], color="#f6aa1c", marker="o", linestyle=":", markersize=7, label="남은 금액")
+    ax2.plot(df["period"], df["remain_total"], color="#220901", marker="o", linestyle=":", markersize=7, label="남은 금액")
     ax2.set_ylabel("금액 (입금 & 출금)", color="black", fontsize=fontsize)
     ax2.tick_params(axis="y", labelcolor="black")
 
-    ax2.yaxis.set_major_locator(mticker.MultipleLocator(300000))
+    ax2.yaxis.set_major_locator(mticker.MultipleLocator(1000000))
     ax2.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 10000)}만 원"))
 
     fig.suptitle("기간별 입출금 횟수 및 금액 합계", color="black")
@@ -74,7 +74,6 @@ def plot_basic_visualization(start_date, end_date):
 
     img_path = "C:/Users/jangy/Downloads/Vitailic/plot_basic_visualization.png"
     plt.savefig(img_path, format='png', dpi=300)  # dpi를 높이면 해상도가 증가
-    plt.show()
     plt.close()
 
     return img_path  # 이미지 경로 반환
@@ -132,7 +131,7 @@ def plot_balance_change_beginning_and_end_each_month_visualization(start_date, e
     combined_df = pd.concat([beginning_df, ending_df], ignore_index=True)
     plt.figure(figsize=figsize)
     sns.histplot(data=combined_df, x='period', weights='beginning_balance', hue='balance_type', multiple='stack',
-                 kde=False, palette=['skyblue', 'lightcoral'])
+                 kde=False, palette=['#f6aa1c', '#941b0c'])
     plt.xlabel('기간', fontsize=fontsize)
     plt.ylabel('잔액', fontsize=fontsize)
     plt.title('매월 초와 말의 잔액 변화', fontsize=fontsize)
@@ -147,6 +146,8 @@ def plot_balance_change_beginning_and_end_each_month_visualization(start_date, e
 
     img_path = "C:/Users/jangy/Downloads/Vitailic/plot_balance_change_beginning_and_end_each_month_visualization.png"
     plt.savefig(img_path, format='png', dpi=300)  # dpi를 높이면 해상도가 증가
+    plt.show()
+
     plt.close()
 
     return img_path  # 이미지 경로 반환
@@ -224,22 +225,24 @@ def plot_week_and_time_pattern(start_date, end_date):
     day_labels = ['월', '화', '수', '목', '금', '토', '일']
     freq_df['day_of_week'] = freq_df['day_of_week'].apply(lambda x: day_labels[x])
 
+    colors = ["#220901", "#621708", "#941b0c", "#bc3908", "#f6aa1c"]
+    cmap = mcolors.ListedColormap(colors)
+
     # 버블 차트 생성
-    plt.figure(figsize=figsize)
+    plt.figure(figsize=(10, 6))  # 필요에 따라 figsize를 설정하세요
     bubble = plt.scatter(
         x=freq_df['hour'],
         y=freq_df['day_of_week'],
         s=freq_df['count'] * 10,  # count에 따라 버블 크기 조절
         alpha=0.6,
         c=freq_df['count'],
-        cmap="viridis",
-        edgecolor='black',  # 버블 테두리 추가
-        linewidth=1.5  # 테두리 두께 설정
+        cmap=cmap,  # 수동 컬러 맵 적용
+        linewidth=1.5
     )
     plt.colorbar(bubble, label="사용 빈도")
     plt.xlabel("시간대 (24시간 기준)")
     plt.ylabel("요일")
-    plt.title("요일 및 시간대별 사용 패턴 (버블 차트)")
+    plt.title("요일 및 시간대별 사용 패턴")
 
     # 09시부터 24시까지 x축 설정
     plt.xticks(range(7, 25), [f"{h}시" for h in range(7, 25)])  # 09시부터 24시까지 표시
