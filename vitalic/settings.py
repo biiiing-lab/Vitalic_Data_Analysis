@@ -3,10 +3,10 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = '시크릿키'
+SECRET_KEY = 'django-insecure-bl%5%v(y6q#&1*13&fx2^0r97xk@z)m6(z_s9padf^+_@lga9!'
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['172.16.13.116', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -19,10 +19,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'AnalysisApp'
+    'AnalysisApp',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -62,7 +64,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'vitalic',
         'USER': 'root',
-        'PASSWORD': '',
+        'PASSWORD': 'root',
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -109,3 +111,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://172.16.13.116:3000',  # React 서버 주소
+]
