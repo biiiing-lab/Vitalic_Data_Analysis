@@ -344,15 +344,15 @@
 
 ### 메일 서비스
 #### 4개의 분석 차트를 한 페이지의 PDF 변환
-<br>
-![image](https://github.com/user-attachments/assets/5f252820-bc3f-415b-9e76-213653bd8c6d)
+
+![image](https://github.com/user-attachments/assets/484e86a5-954c-4262-a135-8cf7af9c14cd)
+
+
 <br>
 
 #### SMTP Google Email PDF 발송
-- 사진 추가 예정
 
-<br>
-    
-   
+![image](https://github.com/user-attachments/assets/acf77519-157c-4775-936b-091129bc1593)
+
  
 
